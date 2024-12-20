@@ -1,0 +1,153 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+```
+
+
+1. Read in `districts.csv` into a tibble named `districts`.
+```{r}
+districts <- read.csv("../Documents/NSS_Projects/tidyverse-un-Jorgen85Lex/tidyverse-bonus-Jorgen85Lex/data/districts.csv")
+
+districts
+```
+2. Notice that the first row corresponds to the whole State of Tennessee. Remove this row and save the result back to `districts`.
+
+```{r}
+districts <- districts[-1,]
+districts
+```
+3. How many districts have a proficiency rate of at least 80% for both alg_1 and eng_1?
+
+```{r}
+filtered_80 <- districts |> 
+  filter(alg_1 >= 80 & eng_1 >= 80)
+
+filtered_80
+```
+```{r}
+count(filtered_80)
+```
+
+4. How many districts have a proviciency rate less than 50% for either alg_1 or eng_1?
+
+```{r}
+filtered_under50<- districts |> 
+  filter(alg_1<50 & eng_1<50)
+
+filtered_under50
+```
+```{r}
+count(filtered_under50)
+```
+5. Which district has the lowest graduation rate?
+
+```{r}
+grad_rate <- districts |> 
+  arrange(grad)
+
+head(grad_rate, 1)
+```
+6. Within the Mid Cumberland region, which district has the highest ACT composite?
+
+```{r}
+MidCumberland <- districts |> 
+  filter(region == "Mid Cumberland") |> 
+  arrange(desc(act_composite))
+
+head(MidCumberland, 1)
+```
+7. Create a scatter plot to compare alg_1 proficiency rates to alg_2 rates. What do you notice? Facet this plot by region. Does anything stand out when you facet the plots?
+
+```{r}
+districts_scatter <- districts |>
+  select(1, 2, 3, 4, 27)
+
+districts_scatter
+```
+
+```{r}
+districts_for_scatterplot <- districts_scatter |> 
+drop_na(alg_1, alg_2)
+```
+
+```{r}
+ggplot(districts_scatter, aes( x= alg_1, y = alg_2))+
+  geom_point()+
+  facet_wrap(~region)
+```
+They all seem to have somewhat of a postive correlation. 
+
+8. When creating this bar chart you may have noticed that some districts have missing enrollment values. For how many districts is this the case?
+
+```{r}
+missing_enrollment <- sum(is.na(districts_scatter$alg_1) | is.na(districts_scatter$alg_2))
+missing_enrollment
+```
+9. A lot of rows are missing additional values. Which district has the largest number of missing values (across all variables)? Hint: you might want to look at rowwise and c_across to answer this question.
+
+
+```{r}
+districts |>
+  mutate(across(everything(), as.character)) |> 
+  rowwise() |> 
+  mutate(missing_count = sum(is.na(c_across(everything())))) |> 
+  ungroup() |> 
+  group_by(system_name) |> 
+  summarise(total_missing = sum(missing_count)) |> 
+  arrange(desc(total_missing)) |> 
+  slice(1)
+```
+
+10. What is the mean graduation rate across all districts? What might be wrong with using just the regular mean to assess average graduation rates?
+
+the regular mean doesn't really take into account students enrolled in each district. So doing more of a weighted mean I think is the way to go here. 
+
+
+```{r}
+simple_mean_grad_rate <- mean(districts$grad, na.rm = TRUE)
+            
+simple_mean_grad_rate
+```
+11. Redo the previous question but use a weighted average (`weighted.mean`) graduation across all districts, weighing by enrollment. How much does this change your answer? Can you explain using the data the reason for the big change from using the mean?
+
+```{r}
+mean_grad_rate <- districts |>
+  filter(!is.na(grad) & !is.na(enrollment)) |> 
+  summarise(mean_grad_rate = weighted.mean(grad, enrollment))
+            
+mean_grad_rate
+```
+These values are slightly off because you do have to take into account the amount of students enrolled in each district to get the more accurate mean. 
+
+12. Find the unweighted and weighted average graduation rate by district.
+
+```{r}
+unweighted_avg_grad_rate <- districts |> 
+  group_by(system_name) |> 
+  summarise(unweighted_avg_grad_rate = mean(grad, na.rm = TRUE))
+
+unweighted_avg_grad_rate
+```
+```{r}
+weighted_avg_grad_rate <- districts |> 
+  group_by(system_name) |> 
+  summarise(weighted_avg_grad_rate = weighted.mean(grad, enrollment, na.rm = TRUE))
+
+weighted_avg_grad_rate
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
